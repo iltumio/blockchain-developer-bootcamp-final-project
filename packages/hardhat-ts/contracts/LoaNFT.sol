@@ -53,6 +53,15 @@ contract LoaNFT is Ownable, IERC721Receiver, Interest {
 
   uint256 constant MAX_UINT = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
+  event LoanRequested(
+    address indexed erc721contract,
+    uint256 indexed tokenId,
+    address indexed applicant,
+    uint256 amount,
+    uint32 loanDuration,
+    uint256 yearlyInterestRate
+  );
+
   /**
    * Returns a loan request using the given requestId
    */
@@ -143,14 +152,13 @@ contract LoaNFT is Ownable, IERC721Receiver, Interest {
     loans.pop();
   }
 
-  event LoanRequested(
-    address indexed erc721contract,
-    uint256 indexed tokenId,
-    address indexed applicant,
-    uint256 amount,
-    uint32 loanDuration,
-    uint256 yearlyInterestRate
-  );
+  function _computeRequestId(
+    address sender,
+    address erc721contract,
+    uint256 tokenId
+  ) internal pure returns (bytes32) {
+    return keccak256(abi.encodePacked(sender, erc721contract, tokenId));
+  }
 
   function requestLoan(
     uint256 amount,
@@ -187,21 +195,12 @@ contract LoaNFT is Ownable, IERC721Receiver, Interest {
     emit LoanRequested(erc721contract, tokenId, msg.sender, amount, loanDuration, yearlyInterestRate);
   }
 
-  function _computeRequestId(
-    address sender,
-    address erc721contract,
-    uint256 tokenId
-  ) internal pure returns (bytes32) {
-    return keccak256(abi.encodePacked(sender, erc721contract, tokenId));
-  }
-
   function provideLiquidityForALoan(bytes32 requestId) public payable {
     require(loansTracker[requestId] == 0 || loansTracker[requestId] == MAX_UINT, 'A loan is already active for this NFT');
     require(loanRequestsTracker[requestId] != 0 && loanRequestsTracker[requestId] != MAX_UINT, 'The loan request does not exist');
     LoanRequest memory loanRequest = getLoanRequest(requestId);
 
-    uint256 requestAmount = loanRequest.amount * 1 ether;
-    require(msg.value == requestAmount, 'You are providing the wrong amount of money for this loan');
+    require(msg.value == loanRequest.amount, 'You are providing the wrong amount of money for this loan');
 
     Loan memory loan = Loan({
       applicant: loanRequest.applicant,
@@ -230,7 +229,7 @@ contract LoaNFT is Ownable, IERC721Receiver, Interest {
 
     loans[loansTracker[loanId] - 1].status = LoanStatus.ACTIVE;
     loans[loansTracker[loanId] - 1].startedAt = block.timestamp;
-    payable(loan.applicant).transfer(loan.amount * 1 ether);
+    payable(loan.applicant).transfer(loan.amount);
   }
 
   function getLoanInterests(bytes32 loanId) public view returns (uint256) {
@@ -241,7 +240,7 @@ contract LoaNFT is Ownable, IERC721Receiver, Interest {
 
     uint256 elapsedTime = block.timestamp - loan.startedAt;
 
-    return accrueInterest(loan.amount, effectiveRatePerSecond, elapsedTime) * 1 ether - loan.amount;
+    return accrueInterest(loan.amount, effectiveRatePerSecond, elapsedTime) - loan.amount;
   }
 
   function repayLoan(bytes32 loanId) public payable {
@@ -255,13 +254,14 @@ contract LoaNFT is Ownable, IERC721Receiver, Interest {
 
     uint256 interests = getLoanInterests(loanId);
 
-    require(msg.value >= loan.amount * 1 ether + interests, 'You must repay the amount + the interests');
+    require(msg.value >= loan.amount + interests, 'You must repay the amount + the interests');
 
     loans[loansTracker[loanId] - 1].status = LoanStatus.REPAID;
     loans[loansTracker[loanId] - 1].finalInterests = interests;
 
     // Pay back the extra amount that has been sent as tollerance
-    uint256 difference = msg.value - (loan.amount * 1 ether + interests);
+    uint256 difference = msg.value - (loan.amount + interests);
+
     payable(msg.sender).transfer(difference);
   }
 

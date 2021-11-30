@@ -27,4 +27,12 @@ contract TestNFT is ERC721URIStorage {
     _mint(destination, _tokenIds.current());
     _setTokenURI(_tokenIds.current(), 'testuri');
   }
+
+  function mint() public {
+    _mintOne(msg.sender);
+  }
+
+  function getLastId() public view returns (uint256) {
+    return _tokenIds.current();
+  }
 }
