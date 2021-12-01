@@ -29,10 +29,19 @@ async function main() {
   const loaNFT = await LoaNFT.deploy();
   await loaNFT.deployed();
 
-  console.log("Token address:", loaNFT.address);
+  console.log("LoaNFT address:", loaNFT.address);
 
   // We also save the contract's artifacts and address in the frontend directory
   saveFrontendFiles("LoaNFT", loaNFT);
+
+  const TestNFT = await ethers.getContractFactory("TestNFT");
+  const testNFT = await TestNFT.deploy("TestNFT", "TNFT");
+  await testNFT.deployed();
+
+  console.log("TestNFT address:", testNFT.address);
+
+  // We also save the contract's artifacts and address in the frontend directory
+  saveFrontendFiles("TestNFT", testNFT);
 }
 
 function saveFrontendFiles(contractName: string, contract: Contract) {
@@ -43,9 +52,16 @@ function saveFrontendFiles(contractName: string, contract: Contract) {
     fs.mkdirSync(contractsDir);
   }
 
+  const rawContent = fs.readFileSync(contractsDir + "/contract-address.json");
+  const jsonContent = JSON.parse(rawContent);
+
   fs.writeFileSync(
     contractsDir + "/contract-address.json",
-    JSON.stringify({ [contractName]: contract.address }, undefined, 2)
+    JSON.stringify(
+      { ...jsonContent, [contractName]: contract.address },
+      undefined,
+      2
+    )
   );
 
   const ContractArtifact = artifacts.readArtifactSync(contractName);

@@ -3,22 +3,6 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { BigNumber } from "@ethersproject/bignumber";
 
-const getBlockAverageTime = async (span = 10) => {
-  const times = [];
-  const currentNumber = await ethers.provider.getBlockNumber();
-  const firstBlock = await ethers.provider.getBlock(currentNumber - span);
-  let prevTimestamp = firstBlock.timestamp;
-
-  for (let i = currentNumber - span + 1; i <= currentNumber; i++) {
-    const block = await ethers.provider.getBlock(i);
-    let time = block.timestamp - prevTimestamp;
-    prevTimestamp = block.timestamp;
-    times.push(time);
-  }
-
-  return Math.round(times.reduce((a, b) => a + b) / times.length);
-};
-
 describe("LoaNFT", function () {
   let LoaNFTFactory: ContractFactory;
   let TestNFTFactory: ContractFactory;
@@ -68,8 +52,13 @@ describe("LoaNFT", function () {
 
     await testNFT.approve(loaNFT.address, expectedTokenId);
 
+    const requestId = ethers.utils.solidityKeccak256(
+      ["address", "address", "uint256"],
+      [owner.address, testNFT.address, expectedTokenId]
+    );
+
     expect(
-      loaNFT.requestLoan(
+      await loaNFT.requestLoan(
         expectedAmount,
         testNFT.address,
         expectedTokenId,
@@ -79,8 +68,7 @@ describe("LoaNFT", function () {
     )
       .to.emit(loaNFT, "LoanRequested")
       .withArgs(
-        testNFT.address.toString(),
-        expectedTokenId,
+        requestId.toString(),
         owner.address.toString(),
         expectedAmount,
         expectedLoanDuration,
@@ -92,11 +80,6 @@ describe("LoaNFT", function () {
     expect(ownerOfFirstAfter).to.equal(
       loaNFT.address,
       "The NFT has not been transfered"
-    );
-
-    const requestId = ethers.utils.solidityKeccak256(
-      ["address", "address", "uint256"],
-      [owner.address, testNFT.address, expectedTokenId]
     );
 
     const { amount, tokenId, applicant, yearlyInterestRate, loanDuration } =
@@ -211,11 +194,9 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, expectedTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     expect(
       loaNFT.requestLoan(
@@ -253,11 +234,20 @@ describe("LoaNFT", function () {
 
     const balanceBefore = await ethers.provider.getBalance(loaNFT.address);
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
+    expect(
+      await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
         value: expectedAmount.toString(),
-      });
+      })
+    )
+      .to.emit(loaNFT, "LiquidityProvided")
+      .withArgs(
+        requestId.toString(),
+        owner.address.toString(),
+        supplier.address.toString(),
+        expectedAmount,
+        expectedLoanDuration,
+        expectedYearlyInterestRate
+      );
 
     const balanceAfter = await ethers.provider.getBalance(loaNFT.address);
 
@@ -287,18 +277,14 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, expectedTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     await expect(
-      loaNFT
-        .connect(supplier)
-        .provideLiquidityForALoan(requestId, {
-          value: expectedAmount.toString(),
-        })
+      loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+        value: expectedAmount.toString(),
+      })
     ).to.be.revertedWith("A loan is already active for this NFT");
   });
 
@@ -328,11 +314,9 @@ describe("LoaNFT", function () {
     );
 
     await expect(
-      loaNFT
-        .connect(supplier)
-        .provideLiquidityForALoan(requestId, {
-          value: ethers.utils.parseEther(wrongAmount.toString()),
-        })
+      loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+        value: ethers.utils.parseEther(wrongAmount.toString()),
+      })
     ).to.be.revertedWith(
       "You are providing the wrong amount of money for this loan"
     );
@@ -350,11 +334,9 @@ describe("LoaNFT", function () {
     );
 
     await expect(
-      loaNFT
-        .connect(supplier)
-        .provideLiquidityForALoan(requestId, {
-          value: expectedAmount.toString(),
-        })
+      loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+        value: expectedAmount.toString(),
+      })
     ).to.be.revertedWith("The loan request does not exist");
   });
 
@@ -381,15 +363,19 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, expectedTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     const balanceBefore = await ethers.provider.getBalance(owner.address);
 
-    await loaNFT.connect(owner).widthrawLoan(requestId);
+    expect(await loaNFT.connect(owner).widthrawLoan(requestId))
+      .to.emit(loaNFT, "LoanWithdraw")
+      .withArgs(
+        requestId.toString(),
+        owner.address.toString(),
+        supplier.address.toString()
+      );
 
     const balanceAfter = await ethers.provider.getBalance(owner.address);
 
@@ -426,11 +412,9 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, expectedTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     await loaNFT.connect(owner).widthrawLoan(requestId);
 
@@ -462,11 +446,9 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, expectedTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     expect(
       loaNFT.connect(thirdParty).widthrawLoan(requestId)
@@ -502,11 +484,9 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, wrongTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     expect(
       loaNFT.connect(owner).widthrawLoan(wrongRequestId)
@@ -536,11 +516,9 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, expectedTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     await loaNFT.connect(owner).widthrawLoan(requestId);
 
@@ -557,17 +535,23 @@ describe("LoaNFT", function () {
       loaNFT.address
     );
 
-    await loaNFT
-      .connect(owner)
-      .repayLoan(requestId, {
+    expect(
+      await loaNFT.connect(owner).repayLoan(requestId, {
         value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
-      });
+      })
+    )
+      .to.emit(loaNFT, "LoanRepaid")
+      .withArgs(
+        requestId.toString(),
+        owner.address.toString(),
+        supplier.address.toString()
+      );
 
     const contractBalanceAfter = await ethers.provider.getBalance(
       loaNFT.address
     );
 
-    expect(contractBalanceBefore).to.be.lt(
+    expect(contractBalanceBefore).to.be.lte(
       contractBalanceAfter,
       "You got no money back"
     );
@@ -596,11 +580,9 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, expectedTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     await loaNFT.connect(owner).widthrawLoan(requestId);
 
@@ -613,18 +595,14 @@ describe("LoaNFT", function () {
 
     const tolleranceMultiplier = 4;
 
-    await loaNFT
-      .connect(owner)
-      .repayLoan(requestId, {
-        value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
-      });
+    await loaNFT.connect(owner).repayLoan(requestId, {
+      value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
+    });
 
     expect(
-      loaNFT
-        .connect(owner)
-        .repayLoan(requestId, {
-          value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
-        })
+      loaNFT.connect(owner).repayLoan(requestId, {
+        value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
+      })
     ).to.be.revertedWith("The loan is not active. Nothing to repay");
   });
 
@@ -657,11 +635,9 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, wrongTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     await loaNFT.connect(owner).widthrawLoan(requestId);
 
@@ -675,11 +651,9 @@ describe("LoaNFT", function () {
     const tolleranceMultiplier = 4;
 
     expect(
-      loaNFT
-        .connect(owner)
-        .repayLoan(wrongRequestId, {
-          value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
-        })
+      loaNFT.connect(owner).repayLoan(wrongRequestId, {
+        value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
+      })
     ).to.be.revertedWith("The loan does not exist");
   });
 
@@ -706,11 +680,9 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, expectedTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     await loaNFT.connect(owner).widthrawLoan(requestId);
 
@@ -724,11 +696,9 @@ describe("LoaNFT", function () {
     const tolleranceMultiplier = 4;
 
     expect(
-      loaNFT
-        .connect(thirdParty)
-        .repayLoan(requestId, {
-          value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
-        })
+      loaNFT.connect(thirdParty).repayLoan(requestId, {
+        value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
+      })
     ).to.be.revertedWith("This loan does not belong to you");
   });
 
@@ -755,11 +725,9 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, expectedTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     await loaNFT.connect(owner).widthrawLoan(requestId);
 
@@ -773,11 +741,9 @@ describe("LoaNFT", function () {
     const tolleranceMultiplier = 4;
 
     expect(
-      loaNFT
-        .connect(owner)
-        .repayLoan(requestId, {
-          value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
-        })
+      loaNFT.connect(owner).repayLoan(requestId, {
+        value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
+      })
     ).to.be.revertedWith("Too late");
   });
 
@@ -804,11 +770,9 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, expectedTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     await loaNFT.connect(owner).widthrawLoan(requestId);
 
@@ -821,15 +785,19 @@ describe("LoaNFT", function () {
 
     const tolleranceMultiplier = 4;
 
-    await loaNFT
-      .connect(owner)
-      .repayLoan(requestId, {
-        value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
-      });
+    await loaNFT.connect(owner).repayLoan(requestId, {
+      value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
+    });
 
     const balanceBefore = await ethers.provider.getBalance(supplier.address);
 
-    await loaNFT.connect(supplier).redeemLoanOrNFT(requestId);
+    expect(await loaNFT.connect(supplier).redeemLoanOrNFT(requestId))
+      .to.emit(loaNFT, "LoanExtinguishedWithMoney")
+      .withArgs(
+        requestId.toString(),
+        owner.address.toString(),
+        supplier.address.toString()
+      );
 
     const balanceAfter = await ethers.provider.getBalance(supplier.address);
 
@@ -863,11 +831,9 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, expectedTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     await loaNFT.connect(owner).widthrawLoan(requestId);
 
@@ -880,11 +846,9 @@ describe("LoaNFT", function () {
 
     const tolleranceMultiplier = 4;
 
-    await loaNFT
-      .connect(owner)
-      .repayLoan(requestId, {
-        value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
-      });
+    await loaNFT.connect(owner).repayLoan(requestId, {
+      value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
+    });
 
     await loaNFT.connect(supplier).redeemLoanOrNFT(requestId);
 
@@ -916,11 +880,9 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, expectedTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     await loaNFT.connect(owner).widthrawLoan(requestId);
 
@@ -929,7 +891,13 @@ describe("LoaNFT", function () {
 
     const nftOwnerBefore = await testNFT.ownerOf(expectedTokenId);
 
-    await loaNFT.connect(supplier).redeemLoanOrNFT(requestId);
+    expect(await loaNFT.connect(supplier).redeemLoanOrNFT(requestId))
+      .to.emit(loaNFT, "LoanExtinguishedWithNFT")
+      .withArgs(
+        requestId.toString(),
+        owner.address.toString(),
+        supplier.address.toString()
+      );
 
     const nftOwnerAfter = await testNFT.ownerOf(expectedTokenId);
 
@@ -966,11 +934,9 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, expectedTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     await loaNFT.connect(owner).widthrawLoan(requestId);
 
@@ -1007,11 +973,9 @@ describe("LoaNFT", function () {
       [owner.address, testNFT.address, expectedTokenId]
     );
 
-    await loaNFT
-      .connect(supplier)
-      .provideLiquidityForALoan(requestId, {
-        value: expectedAmount.toString(),
-      });
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
 
     await loaNFT.connect(owner).widthrawLoan(requestId);
 
@@ -1130,11 +1094,9 @@ describe("LoaNFT", function () {
 
     secondBalanceBefore = await ethers.provider.getBalance(secondOwner.address);
 
-    await loaNFT
-      .connect(secondOwner)
-      .repayLoan(secondRequestId, {
-        value: expectedAmount.add(secondInterests.mul(tolleranceMultiplier)),
-      });
+    await loaNFT.connect(secondOwner).repayLoan(secondRequestId, {
+      value: expectedAmount.add(secondInterests.mul(tolleranceMultiplier)),
+    });
 
     await loaNFT.connect(secondSupplier).redeemLoanOrNFT(secondRequestId);
 
@@ -1156,11 +1118,9 @@ describe("LoaNFT", function () {
 
     let cb = await ethers.provider.getBalance(loaNFT.address);
 
-    await loaNFT
-      .connect(firstOwner)
-      .repayLoan(firstRequestId, {
-        value: expectedAmount.add(firstInterests.mul(tolleranceMultiplier)),
-      });
+    await loaNFT.connect(firstOwner).repayLoan(firstRequestId, {
+      value: expectedAmount.add(firstInterests.mul(tolleranceMultiplier)),
+    });
 
     await loaNFT.connect(firstSupplier).redeemLoanOrNFT(firstRequestId);
 

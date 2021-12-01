@@ -192,19 +192,66 @@ export interface LoaNFTInterface extends utils.Interface {
   ): Result;
 
   events: {
-    "LoanRequested(address,uint256,address,uint256,uint32,uint256)": EventFragment;
+    "LiquidityProvided(bytes32,address,address,uint256,uint32,uint256)": EventFragment;
+    "LoanExtinguishedWithMoney(bytes32,address,address)": EventFragment;
+    "LoanExtinguishedWithNFT(bytes32,address,address)": EventFragment;
+    "LoanRepaid(bytes32,address,address)": EventFragment;
+    "LoanRequested(bytes32,address,uint256,uint32,uint256)": EventFragment;
+    "LoanWithdraw(bytes32,address,address)": EventFragment;
     "OwnershipTransferred(address,address)": EventFragment;
   };
 
+  getEvent(nameOrSignatureOrTopic: "LiquidityProvided"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "LoanExtinguishedWithMoney"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "LoanExtinguishedWithNFT"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "LoanRepaid"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "LoanRequested"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "LoanWithdraw"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "OwnershipTransferred"): EventFragment;
 }
 
-export type LoanRequestedEvent = TypedEvent<
-  [string, BigNumber, string, BigNumber, number, BigNumber],
+export type LiquidityProvidedEvent = TypedEvent<
+  [string, string, string, BigNumber, number, BigNumber],
   {
-    erc721contract: string;
-    tokenId: BigNumber;
+    requestId: string;
+    applicant: string;
+    supplier: string;
+    amount: BigNumber;
+    loanDuration: number;
+    yearlyInterestRate: BigNumber;
+  }
+>;
+
+export type LiquidityProvidedEventFilter =
+  TypedEventFilter<LiquidityProvidedEvent>;
+
+export type LoanExtinguishedWithMoneyEvent = TypedEvent<
+  [string, string, string],
+  { requestId: string; applicant: string; supplier: string }
+>;
+
+export type LoanExtinguishedWithMoneyEventFilter =
+  TypedEventFilter<LoanExtinguishedWithMoneyEvent>;
+
+export type LoanExtinguishedWithNFTEvent = TypedEvent<
+  [string, string, string],
+  { requestId: string; applicant: string; supplier: string }
+>;
+
+export type LoanExtinguishedWithNFTEventFilter =
+  TypedEventFilter<LoanExtinguishedWithNFTEvent>;
+
+export type LoanRepaidEvent = TypedEvent<
+  [string, string, string],
+  { requestId: string; applicant: string; supplier: string }
+>;
+
+export type LoanRepaidEventFilter = TypedEventFilter<LoanRepaidEvent>;
+
+export type LoanRequestedEvent = TypedEvent<
+  [string, string, BigNumber, number, BigNumber],
+  {
+    requestId: string;
     applicant: string;
     amount: BigNumber;
     loanDuration: number;
@@ -213,6 +260,13 @@ export type LoanRequestedEvent = TypedEvent<
 >;
 
 export type LoanRequestedEventFilter = TypedEventFilter<LoanRequestedEvent>;
+
+export type LoanWithdrawEvent = TypedEvent<
+  [string, string, string],
+  { requestId: string; applicant: string; supplier: string }
+>;
+
+export type LoanWithdrawEventFilter = TypedEventFilter<LoanWithdrawEvent>;
 
 export type OwnershipTransferredEvent = TypedEvent<
   [string, string],
@@ -563,22 +617,81 @@ export interface LoaNFT extends BaseContract {
   };
 
   filters: {
-    "LoanRequested(address,uint256,address,uint256,uint32,uint256)"(
-      erc721contract?: string | null,
-      tokenId?: BigNumberish | null,
+    "LiquidityProvided(bytes32,address,address,uint256,uint32,uint256)"(
+      requestId?: BytesLike | null,
+      applicant?: string | null,
+      supplier?: string | null,
+      amount?: null,
+      loanDuration?: null,
+      yearlyInterestRate?: null
+    ): LiquidityProvidedEventFilter;
+    LiquidityProvided(
+      requestId?: BytesLike | null,
+      applicant?: string | null,
+      supplier?: string | null,
+      amount?: null,
+      loanDuration?: null,
+      yearlyInterestRate?: null
+    ): LiquidityProvidedEventFilter;
+
+    "LoanExtinguishedWithMoney(bytes32,address,address)"(
+      requestId?: BytesLike | null,
+      applicant?: string | null,
+      supplier?: string | null
+    ): LoanExtinguishedWithMoneyEventFilter;
+    LoanExtinguishedWithMoney(
+      requestId?: BytesLike | null,
+      applicant?: string | null,
+      supplier?: string | null
+    ): LoanExtinguishedWithMoneyEventFilter;
+
+    "LoanExtinguishedWithNFT(bytes32,address,address)"(
+      requestId?: BytesLike | null,
+      applicant?: string | null,
+      supplier?: string | null
+    ): LoanExtinguishedWithNFTEventFilter;
+    LoanExtinguishedWithNFT(
+      requestId?: BytesLike | null,
+      applicant?: string | null,
+      supplier?: string | null
+    ): LoanExtinguishedWithNFTEventFilter;
+
+    "LoanRepaid(bytes32,address,address)"(
+      requestId?: BytesLike | null,
+      applicant?: string | null,
+      supplier?: string | null
+    ): LoanRepaidEventFilter;
+    LoanRepaid(
+      requestId?: BytesLike | null,
+      applicant?: string | null,
+      supplier?: string | null
+    ): LoanRepaidEventFilter;
+
+    "LoanRequested(bytes32,address,uint256,uint32,uint256)"(
+      requestId?: BytesLike | null,
       applicant?: string | null,
       amount?: null,
       loanDuration?: null,
       yearlyInterestRate?: null
     ): LoanRequestedEventFilter;
     LoanRequested(
-      erc721contract?: string | null,
-      tokenId?: BigNumberish | null,
+      requestId?: BytesLike | null,
       applicant?: string | null,
       amount?: null,
       loanDuration?: null,
       yearlyInterestRate?: null
     ): LoanRequestedEventFilter;
+
+    "LoanWithdraw(bytes32,address,address)"(
+      requestId?: BytesLike | null,
+      applicant?: string | null,
+      supplier?: string | null
+    ): LoanWithdrawEventFilter;
+    LoanWithdraw(
+      requestId?: BytesLike | null,
+      applicant?: string | null,
+      supplier?: string | null
+    ): LoanWithdrawEventFilter;
 
     "OwnershipTransferred(address,address)"(
       previousOwner?: string | null,
