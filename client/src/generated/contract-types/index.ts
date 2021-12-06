@@ -2,6 +2,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { Ownable } from "./Ownable";
+export type { Pausable } from "./Pausable";
 export type { ERC721 } from "./ERC721";
 export type { ERC721URIStorage } from "./ERC721URIStorage";
 export type { IERC721Metadata } from "./IERC721Metadata";
@@ -13,6 +14,7 @@ export type { LoaNFT } from "./LoaNFT";
 export type { TestNFT } from "./TestNFT";
 
 export { Ownable__factory } from "./factories/Ownable__factory";
+export { Pausable__factory } from "./factories/Pausable__factory";
 export { ERC721__factory } from "./factories/ERC721__factory";
 export { ERC721URIStorage__factory } from "./factories/ERC721URIStorage__factory";
 export { IERC721Metadata__factory } from "./factories/IERC721Metadata__factory";

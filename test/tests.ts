@@ -553,7 +553,67 @@ describe("LoaNFT", function () {
 
     expect(contractBalanceBefore).to.be.lte(
       contractBalanceAfter,
-      "You got no money back"
+      "Money has not been sent to the contract"
+    );
+  });
+
+  it("Should be possible to get back the NFT if you repay the loan on time", async function () {
+    const [owner, supplier] = await ethers.getSigners();
+
+    const expectedTokenId = 1;
+    const expectedAmount = ethers.utils.parseEther("1");
+    const expectedLoanDuration = 31536000; // loan duration in seconds (1 year)
+    const expectedYearlyInterestRate = ethers.utils.parseEther("1");
+
+    await testNFT.approve(loaNFT.address, expectedTokenId);
+
+    await loaNFT.requestLoan(
+      expectedAmount,
+      testNFT.address,
+      expectedTokenId,
+      expectedLoanDuration,
+      expectedYearlyInterestRate
+    );
+
+    const requestId = ethers.utils.solidityKeccak256(
+      ["address", "address", "uint256"],
+      [owner.address, testNFT.address, expectedTokenId]
+    );
+
+    await loaNFT.connect(supplier).provideLiquidityForALoan(requestId, {
+      value: expectedAmount.toString(),
+    });
+
+    await loaNFT.connect(owner).widthrawLoan(requestId);
+
+    await ethers.provider.send("evm_increaseTime", [
+      expectedLoanDuration - 536000,
+    ]);
+    await ethers.provider.send("evm_mine", []);
+
+    const interests: BigNumber = await loaNFT.getLoanInterests(requestId);
+
+    const tolleranceMultiplier = 2;
+
+    const nftBalanceBefore = await testNFT.balanceOf(owner.address);
+
+    expect(
+      await loaNFT.connect(owner).repayLoan(requestId, {
+        value: expectedAmount.add(interests.mul(tolleranceMultiplier)),
+      })
+    )
+      .to.emit(loaNFT, "LoanRepaid")
+      .withArgs(
+        requestId.toString(),
+        owner.address.toString(),
+        supplier.address.toString()
+      );
+
+    const nftBalanceAfter = await testNFT.balanceOf(owner.address);
+
+    expect(nftBalanceBefore).to.be.lt(
+      nftBalanceAfter,
+      "You did not receive the NFT back"
     );
   });
 

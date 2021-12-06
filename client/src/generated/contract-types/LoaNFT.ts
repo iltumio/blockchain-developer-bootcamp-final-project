@@ -18,6 +18,31 @@ import { FunctionFragment, Result, EventFragment } from "@ethersproject/abi";
 import { Listener, Provider } from "@ethersproject/providers";
 import { TypedEventFilter, TypedEvent, TypedListener, OnEvent } from "./common";
 
+export type LoanRequestStruct = {
+  applicant: string;
+  amount: BigNumberish;
+  erc721contract: string;
+  tokenId: BigNumberish;
+  loanDuration: BigNumberish;
+  yearlyInterestRate: BigNumberish;
+};
+
+export type LoanRequestStructOutput = [
+  string,
+  BigNumber,
+  string,
+  BigNumber,
+  number,
+  BigNumber
+] & {
+  applicant: string;
+  amount: BigNumber;
+  erc721contract: string;
+  tokenId: BigNumber;
+  loanDuration: number;
+  yearlyInterestRate: BigNumber;
+};
+
 export type LoanStruct = {
   applicant: string;
   supplier: string;
@@ -55,33 +80,13 @@ export type LoanStructOutput = [
   status: number;
 };
 
-export type LoanRequestStruct = {
-  applicant: string;
-  amount: BigNumberish;
-  erc721contract: string;
-  tokenId: BigNumberish;
-  loanDuration: BigNumberish;
-  yearlyInterestRate: BigNumberish;
-};
-
-export type LoanRequestStructOutput = [
-  string,
-  BigNumber,
-  string,
-  BigNumber,
-  number,
-  BigNumber
-] & {
-  applicant: string;
-  amount: BigNumber;
-  erc721contract: string;
-  tokenId: BigNumber;
-  loanDuration: number;
-  yearlyInterestRate: BigNumber;
-};
-
 export interface LoaNFTInterface extends utils.Interface {
   functions: {
+    "emengencyWithdraw()": FunctionFragment;
+    "emergencyPause()": FunctionFragment;
+    "emergencyResume()": FunctionFragment;
+    "getAllLoanRequests()": FunctionFragment;
+    "getAllLoans()": FunctionFragment;
     "getLoan(bytes32)": FunctionFragment;
     "getLoanInterests(bytes32)": FunctionFragment;
     "getLoanRequest(bytes32)": FunctionFragment;
@@ -89,6 +94,7 @@ export interface LoaNFTInterface extends utils.Interface {
     "loans(uint256)": FunctionFragment;
     "onERC721Received(address,address,uint256,bytes)": FunctionFragment;
     "owner()": FunctionFragment;
+    "paused()": FunctionFragment;
     "provideLiquidityForALoan(bytes32)": FunctionFragment;
     "redeemLoanOrNFT(bytes32)": FunctionFragment;
     "renounceOwnership()": FunctionFragment;
@@ -98,6 +104,26 @@ export interface LoaNFTInterface extends utils.Interface {
     "widthrawLoan(bytes32)": FunctionFragment;
   };
 
+  encodeFunctionData(
+    functionFragment: "emengencyWithdraw",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "emergencyPause",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "emergencyResume",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getAllLoanRequests",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getAllLoans",
+    values?: undefined
+  ): string;
   encodeFunctionData(functionFragment: "getLoan", values: [BytesLike]): string;
   encodeFunctionData(
     functionFragment: "getLoanInterests",
@@ -117,6 +143,7 @@ export interface LoaNFTInterface extends utils.Interface {
     values: [string, string, BigNumberish, BytesLike]
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
+  encodeFunctionData(functionFragment: "paused", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "provideLiquidityForALoan",
     values: [BytesLike]
@@ -146,6 +173,26 @@ export interface LoaNFTInterface extends utils.Interface {
     values: [BytesLike]
   ): string;
 
+  decodeFunctionResult(
+    functionFragment: "emengencyWithdraw",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "emergencyPause",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "emergencyResume",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getAllLoanRequests",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getAllLoans",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "getLoan", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "getLoanInterests",
@@ -165,6 +212,7 @@ export interface LoaNFTInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "paused", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "provideLiquidityForALoan",
     data: BytesLike
@@ -199,6 +247,8 @@ export interface LoaNFTInterface extends utils.Interface {
     "LoanRequested(bytes32,address,uint256,uint32,uint256)": EventFragment;
     "LoanWithdraw(bytes32,address,address)": EventFragment;
     "OwnershipTransferred(address,address)": EventFragment;
+    "Paused(address)": EventFragment;
+    "Unpaused(address)": EventFragment;
   };
 
   getEvent(nameOrSignatureOrTopic: "LiquidityProvided"): EventFragment;
@@ -208,6 +258,8 @@ export interface LoaNFTInterface extends utils.Interface {
   getEvent(nameOrSignatureOrTopic: "LoanRequested"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "LoanWithdraw"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "OwnershipTransferred"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "Paused"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "Unpaused"): EventFragment;
 }
 
 export type LiquidityProvidedEvent = TypedEvent<
@@ -276,6 +328,14 @@ export type OwnershipTransferredEvent = TypedEvent<
 export type OwnershipTransferredEventFilter =
   TypedEventFilter<OwnershipTransferredEvent>;
 
+export type PausedEvent = TypedEvent<[string], { account: string }>;
+
+export type PausedEventFilter = TypedEventFilter<PausedEvent>;
+
+export type UnpausedEvent = TypedEvent<[string], { account: string }>;
+
+export type UnpausedEventFilter = TypedEventFilter<UnpausedEvent>;
+
 export interface LoaNFT extends BaseContract {
   connect(signerOrProvider: Signer | Provider | string): this;
   attach(addressOrName: string): this;
@@ -303,6 +363,24 @@ export interface LoaNFT extends BaseContract {
   removeListener: OnEvent<this>;
 
   functions: {
+    emengencyWithdraw(
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<ContractTransaction>;
+
+    emergencyPause(
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<ContractTransaction>;
+
+    emergencyResume(
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<ContractTransaction>;
+
+    getAllLoanRequests(
+      overrides?: CallOverrides
+    ): Promise<[LoanRequestStructOutput[]]>;
+
+    getAllLoans(overrides?: CallOverrides): Promise<[LoanStructOutput[]]>;
+
     getLoan(
       _loanId: BytesLike,
       overrides?: CallOverrides
@@ -371,6 +449,8 @@ export interface LoaNFT extends BaseContract {
 
     owner(overrides?: CallOverrides): Promise<[string]>;
 
+    paused(overrides?: CallOverrides): Promise<[boolean]>;
+
     provideLiquidityForALoan(
       requestId: BytesLike,
       overrides?: PayableOverrides & { from?: string | Promise<string> }
@@ -409,6 +489,24 @@ export interface LoaNFT extends BaseContract {
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<ContractTransaction>;
   };
+
+  emengencyWithdraw(
+    overrides?: Overrides & { from?: string | Promise<string> }
+  ): Promise<ContractTransaction>;
+
+  emergencyPause(
+    overrides?: Overrides & { from?: string | Promise<string> }
+  ): Promise<ContractTransaction>;
+
+  emergencyResume(
+    overrides?: Overrides & { from?: string | Promise<string> }
+  ): Promise<ContractTransaction>;
+
+  getAllLoanRequests(
+    overrides?: CallOverrides
+  ): Promise<LoanRequestStructOutput[]>;
+
+  getAllLoans(overrides?: CallOverrides): Promise<LoanStructOutput[]>;
 
   getLoan(
     _loanId: BytesLike,
@@ -478,6 +576,8 @@ export interface LoaNFT extends BaseContract {
 
   owner(overrides?: CallOverrides): Promise<string>;
 
+  paused(overrides?: CallOverrides): Promise<boolean>;
+
   provideLiquidityForALoan(
     requestId: BytesLike,
     overrides?: PayableOverrides & { from?: string | Promise<string> }
@@ -517,6 +617,18 @@ export interface LoaNFT extends BaseContract {
   ): Promise<ContractTransaction>;
 
   callStatic: {
+    emengencyWithdraw(overrides?: CallOverrides): Promise<void>;
+
+    emergencyPause(overrides?: CallOverrides): Promise<void>;
+
+    emergencyResume(overrides?: CallOverrides): Promise<void>;
+
+    getAllLoanRequests(
+      overrides?: CallOverrides
+    ): Promise<LoanRequestStructOutput[]>;
+
+    getAllLoans(overrides?: CallOverrides): Promise<LoanStructOutput[]>;
+
     getLoan(
       _loanId: BytesLike,
       overrides?: CallOverrides
@@ -584,6 +696,8 @@ export interface LoaNFT extends BaseContract {
     ): Promise<string>;
 
     owner(overrides?: CallOverrides): Promise<string>;
+
+    paused(overrides?: CallOverrides): Promise<boolean>;
 
     provideLiquidityForALoan(
       requestId: BytesLike,
@@ -701,9 +815,31 @@ export interface LoaNFT extends BaseContract {
       previousOwner?: string | null,
       newOwner?: string | null
     ): OwnershipTransferredEventFilter;
+
+    "Paused(address)"(account?: null): PausedEventFilter;
+    Paused(account?: null): PausedEventFilter;
+
+    "Unpaused(address)"(account?: null): UnpausedEventFilter;
+    Unpaused(account?: null): UnpausedEventFilter;
   };
 
   estimateGas: {
+    emengencyWithdraw(
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<BigNumber>;
+
+    emergencyPause(
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<BigNumber>;
+
+    emergencyResume(
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<BigNumber>;
+
+    getAllLoanRequests(overrides?: CallOverrides): Promise<BigNumber>;
+
+    getAllLoans(overrides?: CallOverrides): Promise<BigNumber>;
+
     getLoan(_loanId: BytesLike, overrides?: CallOverrides): Promise<BigNumber>;
 
     getLoanInterests(
@@ -732,6 +868,8 @@ export interface LoaNFT extends BaseContract {
     ): Promise<BigNumber>;
 
     owner(overrides?: CallOverrides): Promise<BigNumber>;
+
+    paused(overrides?: CallOverrides): Promise<BigNumber>;
 
     provideLiquidityForALoan(
       requestId: BytesLike,
@@ -773,6 +911,24 @@ export interface LoaNFT extends BaseContract {
   };
 
   populateTransaction: {
+    emengencyWithdraw(
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<PopulatedTransaction>;
+
+    emergencyPause(
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<PopulatedTransaction>;
+
+    emergencyResume(
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<PopulatedTransaction>;
+
+    getAllLoanRequests(
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
+    getAllLoans(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
     getLoan(
       _loanId: BytesLike,
       overrides?: CallOverrides
@@ -807,6 +963,8 @@ export interface LoaNFT extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     owner(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
+    paused(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     provideLiquidityForALoan(
       requestId: BytesLike,

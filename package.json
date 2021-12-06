@@ -22,6 +22,13 @@
     "compile": "npx hardhat compile",
     "deploy:local": "npx hardhat run scripts/deploy.ts --network localhost",
     "test": "npx hardhat test",
-    "chain": "npx hardhat node"
+    "chain": "USE_HARDHAT_LOCALHOST_CONFIG=true npx hardhat node",
+    "start:local": "(cd client && yarn start)"
+  },
+  "dependencies": {
+    "dayjs": "^1.10.7",
+    "dotenv": "^10.0.0",
+    "react-hook-form": "^7.20.5",
+    "react-router-dom": "6"
   }
 }

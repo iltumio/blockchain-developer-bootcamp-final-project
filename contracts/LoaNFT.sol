@@ -6,9 +6,10 @@ import "hardhat/console.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "./lib/InterestHelper.sol";
 
-contract LoaNFT is Ownable, IERC721Receiver, Interest {
+contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
     enum LoanStatus {
         INITIAL,
         FUNDED,
@@ -109,6 +110,23 @@ contract LoaNFT is Ownable, IERC721Receiver, Interest {
     }
 
     /**
+     * Returns a loan from the loans mapping
+     */
+    function getLoan(bytes32 _loanId) public view returns (Loan memory) {
+        uint256 index = loansTracker[_loanId];
+        require(index != 0, "Loan does not exist");
+        return loans[index - 1];
+    }
+
+    function getAllLoanRequests() public view returns (LoanRequest[] memory) {
+        return loanRequests;
+    }
+
+    function getAllLoans() public view returns (Loan[] memory) {
+        return loans;
+    }
+
+    /**
      * Adds a new loan request to the loanRequests mapping
      */
     function _addLoanRequest(bytes32 requestId, LoanRequest memory _loanRequest)
@@ -148,15 +166,6 @@ contract LoaNFT is Ownable, IERC721Receiver, Interest {
 
         // Reduce the size of the array by 1
         loanRequests.pop();
-    }
-
-    /**
-     * Returns a loan from the loans mapping
-     */
-    function getLoan(bytes32 _loanId) public view returns (Loan memory) {
-        uint256 index = loansTracker[_loanId];
-        require(index != 0, "Loan does not exist");
-        return loans[index - 1];
     }
 
     /**
@@ -231,7 +240,7 @@ contract LoaNFT is Ownable, IERC721Receiver, Interest {
         uint256 tokenId,
         uint32 loanDuration,
         uint256 yearlyInterestRate
-    ) public {
+    ) public whenNotPaused {
         bytes32 requestId = _computeRequestId(
             msg.sender,
             erc721contract,
@@ -274,7 +283,11 @@ contract LoaNFT is Ownable, IERC721Receiver, Interest {
         );
     }
 
-    function provideLiquidityForALoan(bytes32 requestId) public payable {
+    function provideLiquidityForALoan(bytes32 requestId)
+        public
+        payable
+        whenNotPaused
+    {
         require(
             loansTracker[requestId] == 0 || loansTracker[requestId] == MAX_UINT,
             "A loan is already active for this NFT"
@@ -317,7 +330,7 @@ contract LoaNFT is Ownable, IERC721Receiver, Interest {
         );
     }
 
-    function widthrawLoan(bytes32 loanId) public {
+    function widthrawLoan(bytes32 loanId) public whenNotPaused {
         require(
             loansTracker[loanId] != 0 && loansTracker[loanId] != MAX_UINT,
             "The loan does not exist"
@@ -342,7 +355,7 @@ contract LoaNFT is Ownable, IERC721Receiver, Interest {
         emit LoanWithdraw(loanId, loan.applicant, loan.supplier);
     }
 
-    function repayLoan(bytes32 loanId) public payable {
+    function repayLoan(bytes32 loanId) public payable whenNotPaused {
         require(
             loansTracker[loanId] != 0 && loansTracker[loanId] != MAX_UINT,
             "The loan does not exist"
@@ -375,10 +388,19 @@ contract LoaNFT is Ownable, IERC721Receiver, Interest {
 
         payable(msg.sender).transfer(difference);
 
+        // Instanciate the ERC721 contract for the transfer
+        IERC721 nftContract = IERC721(getLoan(loanId).erc721contract);
+
+        nftContract.safeTransferFrom(
+            address(this),
+            msg.sender,
+            getLoan(loanId).tokenId
+        );
+
         emit LoanRepaid(loanId, loan.applicant, loan.supplier);
     }
 
-    function redeemLoanOrNFT(bytes32 loanId) public payable {
+    function redeemLoanOrNFT(bytes32 loanId) public payable whenNotPaused {
         require(
             loansTracker[loanId] != 0 && loansTracker[loanId] != MAX_UINT,
             "The loan does not exist"
@@ -432,6 +454,22 @@ contract LoaNFT is Ownable, IERC721Receiver, Interest {
         );
 
         emit LoanExtinguishedWithNFT(loanId, loan.applicant, loan.supplier);
+    }
+
+    /**
+     * Security circuit breaker
+     */
+
+    function emergencyPause() public onlyOwner {
+        _pause();
+    }
+
+    function emergencyResume() public onlyOwner {
+        _unpause();
+    }
+
+    function emengencyWithdraw() public onlyOwner whenPaused {
+        payable(owner()).transfer(address(this).balance);
     }
 
     /**

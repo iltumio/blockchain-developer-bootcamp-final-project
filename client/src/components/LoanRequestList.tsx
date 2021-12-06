@@ -9,15 +9,20 @@ import {
   useColorModeValue as mode,
 } from "@chakra-ui/react";
 import { NewLoanRequest } from "./modals/NewLoanRequest";
-import { LoanStructOutput } from "../generated/contract-types/LoaNFT";
-import { LoanItem } from "./LoanItem";
+import { LoanRequestStructOutput } from "../generated/contract-types/LoaNFT";
+import { LoanRequestItem } from "./LoanRequestItem";
 
-type LoanProps = {
+type LoanRequestListProps = {
   title: string;
-  items: LoanStructOutput[];
+  items: LoanRequestStructOutput[];
+  onAdd?: () => void;
 };
 
-export const LoanList: React.FC<LoanProps> = ({ title, items }) => {
+export const LoanRequestList = ({
+  title,
+  items,
+  onAdd,
+}: LoanRequestListProps) => {
   return (
     <Box as="section" py="12" bg={mode("gray.100", "gray.800")}>
       <Box maxW={{ base: "xl", md: "7xl" }} mx="auto" px={{ md: "8" }}>
@@ -33,6 +38,7 @@ export const LoanList: React.FC<LoanProps> = ({ title, items }) => {
             <Text as="h3" fontWeight="bold" fontSize="lg">
               {title}
             </Text>
+            <NewLoanRequest />
           </Flex>
           <Divider />
           <Stack spacing="6" py="5" px="8" divider={<StackDivider />}>
@@ -41,15 +47,15 @@ export const LoanList: React.FC<LoanProps> = ({ title, items }) => {
               items.length === 0 && (
                 <Box>
                   <Box fontWeight="bold" maxW="xl" textAlign="center">
-                    No active loans at the moment
+                    No loan requests at the moment
                   </Box>
                 </Box>
               )
             }
             {items.map((item) => (
-              <LoanItem
+              <LoanRequestItem
                 key={`${item.applicant}${item.erc721contract}${item.tokenId}`}
-                loan={item}
+                loanRequest={item}
               />
             ))}
           </Stack>

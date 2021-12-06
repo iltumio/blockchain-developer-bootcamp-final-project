@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Web3Modal from "web3modal";
 import { ethers } from "ethers";
 
@@ -22,40 +22,44 @@ export function useWeb3modal() {
 
   const [selectedAddress, setSelectedAddress] = useState("");
 
-  if (!ethersProvider) {
-    web3Modal
-      .connect()
-      .then((provider) => {
-        // Reload on account change
-        provider.on("accountsChanged", (accounts: string[]) => {
-          window.location.reload();
-        });
+  const connect = useCallback(() => {
+    if (!ethersProvider || !connected) {
+      web3Modal
+        .connect()
+        .then((provider) => {
+          // Reload on account change
+          provider.on("accountsChanged", (accounts: string[]) => {
+            window.location.reload();
+          });
 
-        // Subscribe to chainId change
-        provider.on("chainChanged", (chainId: number) => {
-          window.location.reload();
-        });
+          // Subscribe to chainId change
+          provider.on("chainChanged", (chainId: number) => {
+            window.location.reload();
+          });
 
-        // Subscribe to provider connection
-        provider.on("connect", (info: { chainId: number }) => {
-          console.log(info);
+          // Subscribe to provider connection
+          provider.on("connect", (info: { chainId: number }) => {
+            console.log(info);
+            setConnected(true);
+          });
+
+          // Subscribe to provider disconnection
+          provider.on(
+            "disconnect",
+            (error: { code: number; message: string }) => {
+              setConnected(false);
+            }
+          );
+
+          const ethProvider = new ethers.providers.Web3Provider(provider);
+
+          setEthersProvider(ethProvider);
           setConnected(true);
-        });
+          setSelectedAddress(provider.selectedAddress);
+        })
+        .catch((e) => setError(e));
+    }
+  }, [connected, ethersProvider]);
 
-        // Subscribe to provider disconnection
-        provider.on(
-          "disconnect",
-          (error: { code: number; message: string }) => {
-            setConnected(false);
-          }
-        );
-
-        setEthersProvider(new ethers.providers.Web3Provider(provider));
-        setConnected(true);
-        setSelectedAddress(provider.selectedAddress);
-      })
-      .catch((e) => setError(e));
-  }
-
-  return { ethersProvider, error, connected, selectedAddress };
+  return { ethersProvider, error, connected, selectedAddress, connect };
 }
