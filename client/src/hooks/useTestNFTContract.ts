@@ -7,18 +7,25 @@ import { TestNFT } from "../generated/contract-types/TestNFT";
 
 export function useTestNFTContract(provider?: ethers.providers.Web3Provider) {
   const [contractInstance, setContractInstance] = useState<TestNFT>();
+  const [deployed, setDeployed] = useState(false);
 
   useEffect(() => {
     if (provider && !contractInstance) {
-      setContractInstance(
-        new ethers.Contract(
-          ContractAddresses.TestNFT,
-          TestNFTAbi,
-          provider.getSigner()
-        ) as TestNFT
-      );
+      const contract = new ethers.Contract(
+        ContractAddresses.TestNFT,
+        TestNFTAbi,
+        provider.getSigner()
+      ) as TestNFT;
+
+      contract
+        .deployed()
+        .then(() => {
+          setContractInstance(contract);
+          setDeployed(true);
+        })
+        .catch(() => setDeployed(false));
     }
   }, [provider, contractInstance]);
 
-  return contractInstance;
+  return { contractInstance, deployed };
 }

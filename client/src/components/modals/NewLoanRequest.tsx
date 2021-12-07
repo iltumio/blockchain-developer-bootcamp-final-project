@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import {
   Button,
   FormControl,
@@ -87,8 +87,6 @@ export const NewLoanRequest: React.FC<NewLoanRequestProps> = () => {
 
         const approved = await contracts.testNFT.getApproved(data.tokenId);
 
-        console.log(approved);
-
         if (
           ethers.utils.getAddress(approved) !==
           ethers.utils.getAddress(contracts.loaNFT.address)
@@ -124,7 +122,7 @@ export const NewLoanRequest: React.FC<NewLoanRequestProps> = () => {
           onClose();
         })
         .catch((e) => {
-          console.log(e.data);
+          console.log(e);
           setSendingRequest(false);
         });
     },
@@ -158,6 +156,15 @@ export const NewLoanRequest: React.FC<NewLoanRequestProps> = () => {
 
     console.log(contracts.loaNFT.address, tokenId);
   }, [contracts.testNFT, contracts.loaNFT, tokenId]);
+
+  useEffect(() => {
+    if (!contracts.loaNFT) return;
+
+    contracts.loaNFT
+      .getAllLoanRequests()
+      .then((r) => console.log(r))
+      .catch((e) => console.log(e));
+  }, [contracts.loaNFT]);
 
   if (!contracts.testNFT) return <div />;
 

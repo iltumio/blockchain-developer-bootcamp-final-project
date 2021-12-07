@@ -3,7 +3,7 @@ import { Button } from "@chakra-ui/button";
 import { Flex, Heading } from "@chakra-ui/layout";
 import { Avatar, useToast } from "@chakra-ui/react";
 import { useWeb3 } from "../../context/Web3Context";
-import { HARDHAT_LOCAL_NETWORK } from "../../constants";
+// import { HARDHAT_LOCAL_NETWORK } from "../../constants";
 
 type HeaderProps = {};
 
@@ -15,13 +15,11 @@ export const Header: React.FC<HeaderProps> = () => {
     connect,
     selectedAddress,
     contracts: { testNFT },
-    ethersProvider,
   } = useWeb3();
 
   const [nftBalance, setNFTBalance] = useState(0);
 
   useEffect(() => {
-    console.log(connected, testNFT, selectedAddress);
     if (!connected || !testNFT || !selectedAddress) return;
 
     testNFT.balanceOf(selectedAddress).then((balance) => {

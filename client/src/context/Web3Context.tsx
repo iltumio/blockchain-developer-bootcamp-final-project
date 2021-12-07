@@ -28,6 +28,7 @@ interface IWeb3Context {
   connect?: () => void;
   getAllLoans: () => void;
   getAllLoanRequests: () => void;
+  missingContracts?: { [key: string]: boolean };
 }
 
 export const Web3Context = React.createContext<IWeb3Context>({
@@ -44,10 +45,10 @@ export const Web3ContextProvider: React.FC = ({ children }) => {
   const { error, ethersProvider, connected, selectedAddress, connect } =
     useWeb3modal();
 
-  console.log("network", ethersProvider?.network);
-
-  const loaNFT = useLoaNFTContract(ethersProvider);
-  const testNFT = useTestNFTContract(ethersProvider);
+  const { contractInstance: loaNFT, deployed: loaNFTDeployed } =
+    useLoaNFTContract(ethersProvider);
+  const { contractInstance: testNFT, deployed: testNFTDeployed } =
+    useTestNFTContract(ethersProvider);
 
   const [loanRequests, setLoanRequests] = useState<LoanRequestStructOutput[]>(
     []
@@ -61,33 +62,31 @@ export const Web3ContextProvider: React.FC = ({ children }) => {
   );
 
   const getAllLoanRequests = useCallback(() => {
-    if (!loaNFT) return;
+    if (!loaNFT || !loaNFTDeployed) return;
     loaNFT.getAllLoanRequests().then((requests) => {
       setLoanRequests(requests);
     });
-  }, [loaNFT]);
+  }, [loaNFT, loaNFTDeployed]);
 
   useEffect(() => {
-    if (!loaNFT) return;
+    if (!loaNFT || !loaNFTDeployed) return;
     getAllLoanRequests();
     const onLoanRequested = () => {
-      console.log("event loan requested");
       getAllLoanRequests();
     };
     loaNFT.on("LoanRequested", onLoanRequested);
 
-    console.log("subscribed");
     return () => {
       loaNFT.off("LoanRequested", onLoanRequested);
     };
-  }, [loaNFT, getAllLoanRequests]);
+  }, [loaNFT, getAllLoanRequests, loaNFTDeployed]);
 
   const getAllLoans = useCallback(() => {
-    if (!loaNFT) return;
+    if (!loaNFT || !loaNFTDeployed) return;
     loaNFT.getAllLoans().then((loans) => {
       setLoans(loans);
     });
-  }, [loaNFT]);
+  }, [loaNFT, loaNFTDeployed]);
 
   useEffect(() => {
     getAllLoans();
@@ -107,6 +106,10 @@ export const Web3ContextProvider: React.FC = ({ children }) => {
         connect,
         getAllLoans,
         getAllLoanRequests,
+        missingContracts: {
+          loaNFT: loaNFTDeployed,
+          testNFT: testNFTDeployed,
+        },
       }}
     >
       {children}

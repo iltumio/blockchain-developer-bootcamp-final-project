@@ -227,7 +227,13 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
             loan.yearlyInterestRate
         );
 
-        uint256 elapsedTime = block.timestamp - loan.startedAt;
+        uint256 elapsedTime;
+
+        if (block.timestamp >= loan.deadline) {
+            elapsedTime = loan.deadline;
+        } else {
+            elapsedTime = block.timestamp - loan.startedAt;
+        }
 
         return
             accrueInterest(loan.amount, effectiveRatePerSecond, elapsedTime) -

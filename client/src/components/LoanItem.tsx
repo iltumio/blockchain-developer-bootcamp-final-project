@@ -14,12 +14,14 @@ import {
   FaQuestionCircle,
   FaUserCircle,
 } from "react-icons/fa";
+import { GrMoney } from "react-icons/gr";
 
 import { LoanStructOutput } from "../generated/contract-types/LoaNFT";
 import { ethers } from "ethers";
 import { useWeb3 } from "../context/Web3Context";
 import { LoanStatus } from "../constants";
 import dayjs from "dayjs";
+import { LiveEarnings } from "./LiveEarnings/LiveEarnings";
 
 interface LoanItemProps {
   loan: LoanStructOutput;
@@ -166,6 +168,19 @@ export const LoanItem: React.FC<LoanItemProps> = (props) => {
         <Box as={FaQuestionCircle} fontSize="md" color="gray.400" />
         <Badge colorScheme="green">{LoanStatus[loan.status]}</Badge>
       </HStack>
+      {contracts.loaNFT && loan.status === 2 && (
+        <HStack
+          fontSize="sm"
+          fontWeight="medium"
+          color={mode("gray.500", "white")}
+          mt="1"
+        >
+          <Box as={GrMoney} fontSize="md" color="gray.400" />
+          <span>
+            <LiveEarnings contract={contracts.loaNFT} loanId={loanId} />
+          </span>
+        </HStack>
+      )}
       <HStack
         position={{ sm: "absolute" }}
         top={{ sm: "0" }}
