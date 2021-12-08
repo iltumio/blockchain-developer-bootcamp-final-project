@@ -9,7 +9,17 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "./lib/InterestHelper.sol";
 
+/// @title LoaNFT - NFTs as collateral for loans
+/// @author Manuel Tumiati
+/// @notice Users can request and obtain loans using their NFTs as collateral
+/// @dev There are 2 structs for Loan requests and Loans. The active requests and loans are
+/// stored in arrays and tracked using mappings for gas optimization.
+/// requestId and loanId are the same and are computed by hashing the sender address,
+/// the NFT contract address and the tokenId together
+/// This contract makes use of solidity-interests-helper by Nick Ward
+/// https://github.com/wolflo/solidity-interest-helper
 contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
+    // Keeps track of the state when a request become effectively a loan
     enum LoanStatus {
         INITIAL,
         FUNDED,
@@ -18,6 +28,7 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         CLOSED
     }
 
+    // Definition of a request object
     struct LoanRequest {
         address applicant; // person who wants to receive a loan using an NFT as collateral
         uint256 amount; // requested amount in eth
@@ -27,6 +38,7 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         uint256 yearlyInterestRate; // interest rate on a yearly basis
     }
 
+    // Definition of a loan object
     struct Loan {
         address applicant; // person who wants to receive a loan using an NFT as collateral
         address supplier; // person who provide liquidity accepting an NFT as collateral
@@ -52,9 +64,16 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
     // Tracks the index of each loan inside the mapping
     mapping(bytes32 => uint256) private loansTracker;
 
+    // Constant used to mark a request or a loan as removed inside the trackers
     uint256 constant MAX_UINT =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
+    /// @notice Loan Request created event
+    /// @param requestId Id of the request
+    /// @param applicant User who requested the loan
+    /// @param amount Amount of money the user is requesting
+    /// @param loanDuration Max duration of the loan (in seconds)
+    /// @param yearlyInterestRate Yearly interest rate the user is willing to pay for the loan
     event LoanRequested(
         bytes32 indexed requestId,
         address indexed applicant,
@@ -63,6 +82,13 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         uint256 yearlyInterestRate
     );
 
+    /// @notice Liquidity Provided event
+    /// @param requestId Id of the request
+    /// @param applicant User who requested the loan
+    /// @param supplier User who provided liquidity for the loan
+    /// @param amount Amount of money the user is requesting
+    /// @param loanDuration Max duration of the loan (in seconds)
+    /// @param yearlyInterestRate Yearly interest rate the user is willing to pay for the loan
     event LiquidityProvided(
         bytes32 indexed requestId,
         address indexed applicant,
@@ -72,33 +98,50 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         uint256 yearlyInterestRate
     );
 
+    /// @notice Loan Withdraw event. It's fired whenever the applicant starts the loan
+    /// @param requestId Id of the request
+    /// @param applicant User who requested the loan
+    /// @param supplier User who provided liquidity for the loan
     event LoanWithdraw(
         bytes32 indexed requestId,
         address indexed applicant,
         address indexed supplier
     );
 
+    /// @notice Loan Repaid event. It's fired whenever the applicant repays the loan
+    /// @param requestId Id of the request
+    /// @param applicant User who requested the loan
+    /// @param supplier User who provided liquidity for the loan
     event LoanRepaid(
         bytes32 indexed requestId,
         address indexed applicant,
         address indexed supplier
     );
 
+    /// @notice Loan Extinguished with money event. It's fired whenever the supplier calls the redeem functions and the
+    /// loan was repaid by the applicant. In this case the supplier gets money + interests back
+    /// @param requestId Id of the request
+    /// @param applicant User who requested the loan
+    /// @param supplier User who provided liquidity for the loan
     event LoanExtinguishedWithMoney(
         bytes32 indexed requestId,
         address indexed applicant,
         address indexed supplier
     );
 
+    /// @notice Loan Extinguished with NFT event. It's fired whenever the supplier calls the redeem functions, but the
+    /// loan was not repaid by the applicant. In this case the supplier gets the NFT that was placed as collateral
+    /// @param requestId Id of the request
+    /// @param applicant User who requested the loan
+    /// @param supplier User who provided liquidity for the loan
     event LoanExtinguishedWithNFT(
         bytes32 indexed requestId,
         address indexed applicant,
         address indexed supplier
     );
 
-    /**
-     * Returns a loan request using the given requestId
-     */
+    /// @notice Returns a loan request from the mapping
+    /// @param _requestId Id of the request to return
     function getLoanRequest(bytes32 _requestId)
         public
         view
@@ -109,41 +152,44 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         return loanRequests[index - 1];
     }
 
-    /**
-     * Returns a loan from the loans mapping
-     */
+    /// @notice Returns a loan from the mapping
+    /// @param _loanId Id of the loan to return
     function getLoan(bytes32 _loanId) public view returns (Loan memory) {
         uint256 index = loansTracker[_loanId];
         require(index != 0, "Loan does not exist");
         return loans[index - 1];
     }
 
+    /// @notice Public function that returns the list af all loan requests
+    /// @dev it's used by the UI to show the list of requests
     function getAllLoanRequests() public view returns (LoanRequest[] memory) {
         return loanRequests;
     }
 
+    /// @notice Public function that returns the list af all loans
+    /// @dev it's used by the UI to show the list of loans
     function getAllLoans() public view returns (Loan[] memory) {
         return loans;
     }
 
-    /**
-     * Adds a new loan request to the loanRequests mapping
-     */
-    function _addLoanRequest(bytes32 requestId, LoanRequest memory _loanRequest)
-        internal
-    {
+    /// @notice Adds a loan request to the array and keeps track of it in the mapping
+    /// @param _requestId Id of the request to add
+    /// @param _loanRequest Request object to add
+    function _addLoanRequest(
+        bytes32 _requestId,
+        LoanRequest memory _loanRequest
+    ) internal {
         loanRequests.push(_loanRequest);
         uint256 index = loanRequests.length;
-        loanRequestsTracker[requestId] = index;
+        loanRequestsTracker[_requestId] = index;
     }
 
-    /**
-     * Removes the loan request with the given requestId from the loanRequests mapping
-     */
-    function _removeRequest(bytes32 requestId) internal {
+    /// @notice Removes the loan request with the given requestId from the array and updates the tracker
+    /// @param _requestId Id of the request to remove
+    function _removeRequest(bytes32 _requestId) internal {
         require(loanRequests.length > 0, "There are no requests to remove");
         // Index of the element to remove
-        uint256 index = loanRequestsTracker[requestId] - 1;
+        uint256 index = loanRequestsTracker[_requestId] - 1;
         uint256 lastIndex = loanRequests.length - 1;
 
         if (index != lastIndex) {
@@ -162,24 +208,23 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         }
 
         // Clear the previous index by setting the maximum integer
-        loanRequestsTracker[requestId] = MAX_UINT;
+        loanRequestsTracker[_requestId] = MAX_UINT;
 
         // Reduce the size of the array by 1
         loanRequests.pop();
     }
 
-    /**
-     * Adds a loan to the loans mapping
-     */
+    /// @notice Adds a loan to the array and keeps track of it in the mapping
+    /// @param _loanId Id of the loan to add
+    /// @param _loan Loan object to add
     function _addLoan(bytes32 _loanId, Loan memory _loan) internal {
         loans.push(_loan);
         uint256 index = loans.length;
         loansTracker[_loanId] = index;
     }
 
-    /**
-     * Removes a loan from the loans mapping
-     */
+    /// @notice Removes the loan with the given loanId from the array and updates the tracker
+    /// @param _loanId Id of the loan to remove
     function _removeLoan(bytes32 _loanId) internal {
         require(loans.length > 0, "There are no loans to remove");
         // Index of the element to remove
@@ -208,6 +253,10 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         loans.pop();
     }
 
+    /// @notice Utility function to compute a requestId
+    /// @param sender The address of the user who owns the NFT
+    /// @param erc721contract The address of the NFT contract
+    /// @param tokenId The id of the token the user wants to place as collateral for a loan
     function _computeRequestId(
         address sender,
         address erc721contract,
@@ -216,6 +265,8 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         return keccak256(abi.encodePacked(sender, erc721contract, tokenId));
     }
 
+    /// @notice Utility function that returns the computed interests for the given loan id
+    /// @param loanId Id of the loan you want to compute the accrued interests
     function getLoanInterests(bytes32 loanId) public view returns (uint256) {
         require(
             loansTracker[loanId] != 0 && loansTracker[loanId] != MAX_UINT,
@@ -230,7 +281,7 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         uint256 elapsedTime;
 
         if (block.timestamp >= loan.deadline) {
-            elapsedTime = loan.deadline;
+            elapsedTime = loan.deadline - loan.startedAt;
         } else {
             elapsedTime = block.timestamp - loan.startedAt;
         }
@@ -240,6 +291,12 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
             loan.amount;
     }
 
+    /// @notice Allow the user to request a Loan
+    /// @param amount Amount of money the user wants to receive on loan
+    /// @param erc721contract The address of the NFT contract
+    /// @param tokenId The id of the token the user wants to place as collateral for a loan
+    /// @param loanDuration Max duration of the loan (in seconds)
+    /// @param yearlyInterestRate Yearly interest rate the user is willing to pay for the loan
     function requestLoan(
         uint256 amount,
         address erc721contract,
@@ -289,6 +346,8 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         );
     }
 
+    /// @notice Allow another user to provide liquidity for the loan
+    /// @param requestId id of the request you want to provide liquidity for
     function provideLiquidityForALoan(bytes32 requestId)
         public
         payable
@@ -336,6 +395,8 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         );
     }
 
+    /// @notice Allow the originator of the request to withdraw the money he got on loan
+    /// @param loanId id of the loan you want to withdraw
     function widthrawLoan(bytes32 loanId) public whenNotPaused {
         require(
             loansTracker[loanId] != 0 && loansTracker[loanId] != MAX_UINT,
@@ -361,6 +422,8 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         emit LoanWithdraw(loanId, loan.applicant, loan.supplier);
     }
 
+    /// @notice Allow the originator of the request to repay the loan
+    /// @param loanId id of the loan you want to repay
     function repayLoan(bytes32 loanId) public payable whenNotPaused {
         require(
             loansTracker[loanId] != 0 && loansTracker[loanId] != MAX_UINT,
@@ -406,6 +469,9 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         emit LoanRepaid(loanId, loan.applicant, loan.supplier);
     }
 
+    /// @notice Allow the liquidity provider for the loan to get the money back if the loan has been repaid or
+    /// get back the collateral NFT if it hasn't
+    /// @param loanId id of the loan you want to redeem
     function redeemLoanOrNFT(bytes32 loanId) public payable whenNotPaused {
         require(
             loansTracker[loanId] != 0 && loansTracker[loanId] != MAX_UINT,
@@ -436,6 +502,8 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         _removeLoan(loanId);
     }
 
+    /// @notice Utility function that sends money back for a specific loan
+    /// @param loanId id of the loan to pay back
     function _payLoanBack(bytes32 loanId) internal {
         Loan memory loan = getLoan(loanId);
 
@@ -448,6 +516,8 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         emit LoanExtinguishedWithMoney(loanId, loan.applicant, loan.supplier);
     }
 
+    /// @notice Utility function that sends the NFT back for a specific loan
+    /// @param loanId id of the loan to pay back
     function _sendNFTToTheSupplier(bytes32 loanId) internal {
         Loan memory loan = getLoan(loanId);
 
@@ -462,25 +532,25 @@ contract LoaNFT is Ownable, Pausable, IERC721Receiver, Interest {
         emit LoanExtinguishedWithNFT(loanId, loan.applicant, loan.supplier);
     }
 
-    /**
-     * Security circuit breaker
-     */
-
+    /// @notice Emergency function that pauses the contract preventig the execution
+    /// in case of bugs or attacks
     function emergencyPause() public onlyOwner {
         _pause();
     }
 
+    /// @notice Emergency function that resumes the state of the contract
     function emergencyResume() public onlyOwner {
         _unpause();
     }
 
+    /// @notice Emergency function that allows the contract owner to withdraw all the money
+    /// in case of bugs or attacks
     function emengencyWithdraw() public onlyOwner whenPaused {
         payable(owner()).transfer(address(this).balance);
     }
 
-    /**
-     * Always returns `IERC721Receiver.onERC721Received.selector`.
-     */
+    /// @notice Function needed to let the contract being able to receive ERC721 NFTs
+    /// @dev Mandatory for IERC721Receiver
     function onERC721Received(
         address,
         address,

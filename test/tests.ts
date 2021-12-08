@@ -792,7 +792,7 @@ describe("LoaNFT", function () {
     await loaNFT.connect(owner).widthrawLoan(requestId);
 
     await ethers.provider.send("evm_increaseTime", [
-      expectedLoanDuration + 536000,
+      expectedLoanDuration + 10800,
     ]);
     await ethers.provider.send("evm_mine", []);
 
