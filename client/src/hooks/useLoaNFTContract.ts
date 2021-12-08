@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 
-import ContractAddresses from "../generated/contracts/contract-address.json";
 import LoaNFTAbi from "../generated/contracts/LoaNFT-abi.json";
 import { LoaNFT } from "../generated/contract-types/LoaNFT";
+import { env } from "../constants";
+
+const ContractAddresses = require("../generated/contracts/contract-address.json");
+const loaNFTAddress = env ? ContractAddresses[env].LoaNFT : "";
 
 export function useLoaNFTContract(provider?: ethers.providers.Web3Provider) {
   const [contractInstance, setContractInstance] = useState<LoaNFT>();
@@ -12,12 +15,12 @@ export function useLoaNFTContract(provider?: ethers.providers.Web3Provider) {
   useEffect(() => {
     if (provider && !contractInstance) {
       const contract = new ethers.Contract(
-        ContractAddresses.LoaNFT,
+        loaNFTAddress,
         LoaNFTAbi,
         provider.getSigner()
       ) as LoaNFT;
 
-      console.log(ContractAddresses.LoaNFT);
+      console.log(loaNFTAddress);
 
       contract
         .deployed()

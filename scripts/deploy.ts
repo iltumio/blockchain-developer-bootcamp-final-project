@@ -52,13 +52,20 @@ function saveFrontendFiles(contractName: string, contract: Contract) {
     fs.mkdirSync(contractsDir);
   }
 
-  const rawContent = fs.readFileSync(contractsDir + "/contract-address.json");
-  const jsonContent = JSON.parse(rawContent);
+  const filename = `${contractsDir}/contract-address.json`;
+  const rawContent = fs.existsSync(filename) ? fs.readFileSync(filename) : {};
+  const jsonContent = fs.existsSync(filename) ? JSON.parse(rawContent) : {};
 
   fs.writeFileSync(
-    contractsDir + "/contract-address.json",
+    filename,
     JSON.stringify(
-      { ...jsonContent, [contractName]: contract.address },
+      {
+        ...jsonContent,
+        [network.name]: {
+          ...jsonContent[network.name],
+          [contractName]: contract.address,
+        },
+      },
       undefined,
       2
     )

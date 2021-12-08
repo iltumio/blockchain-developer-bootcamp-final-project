@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 
-import ContractAddresses from "../generated/contracts/contract-address.json";
 import TestNFTAbi from "../generated/contracts/TestNFT-abi.json";
 import { TestNFT } from "../generated/contract-types/TestNFT";
+import { env } from "../constants";
+
+const ContractAddresses = require("../generated/contracts/contract-address.json");
+const testNFTAddress = env ? ContractAddresses[env].TestNFT : "";
 
 export function useTestNFTContract(provider?: ethers.providers.Web3Provider) {
   const [contractInstance, setContractInstance] = useState<TestNFT>();
@@ -12,7 +15,7 @@ export function useTestNFTContract(provider?: ethers.providers.Web3Provider) {
   useEffect(() => {
     if (provider && !contractInstance) {
       const contract = new ethers.Contract(
-        ContractAddresses.TestNFT,
+        testNFTAddress,
         TestNFTAbi,
         provider.getSigner()
       ) as TestNFT;

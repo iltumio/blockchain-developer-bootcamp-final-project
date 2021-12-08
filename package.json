@@ -21,9 +21,16 @@
   "scripts": {
     "compile": "npx hardhat compile",
     "deploy:local": "npx hardhat run scripts/deploy.ts --network localhost",
+    "deploy:mumbai": "npx hardhat run scripts/deploy.ts --network mumbai",
     "test": "npx hardhat test",
     "chain": "USE_HARDHAT_LOCALHOST_CONFIG=true npx hardhat node",
-    "start:local": "(cd client && yarn start)"
+    "dapp:install": "(cd client && yarn install)",
+    "start:local": "(cd client && yarn start:local)",
+    "start:mumbai": "(cd client && yarn start:mumbai)",
+    "build:local": "(cd client && yarn build:local)",
+    "build:mumbai": "(cd client && yarn build:mumbai)",
+    "serve": "npx serve -s client/build",
+    "netlify:deploy": "netlify deploy --dir=client/build"
   },
   "dependencies": {
     "dayjs": "^1.10.7",

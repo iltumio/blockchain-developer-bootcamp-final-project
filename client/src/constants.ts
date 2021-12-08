@@ -10,3 +10,5 @@ export const HARDHAT_LOCAL_NETWORK = {
   },
   rpcUrls: ["http://localhost:8545"],
 };
+
+export const env = process.env.REACT_APP_ENV;

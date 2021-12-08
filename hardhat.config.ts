@@ -42,8 +42,15 @@ const config: HardhatUserConfig = {
           },
         }
       : {},
+    mumbai: {
+      url: `https://polygon-mumbai.infura.io/v3/${process.env.INFURA_KEY}`,
+      gasPrice: 1000000000,
+      accounts: {
+        mnemonic: getMnemonic(),
+      },
+    },
     matic: {
-      url: "https://rpc-mainnet.maticvigil.com/",
+      url: `https://polygon-mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
       gasPrice: 1000000000,
       accounts: {
         mnemonic: getMnemonic(),

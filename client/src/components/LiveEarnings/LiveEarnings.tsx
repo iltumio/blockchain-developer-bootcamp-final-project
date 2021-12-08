@@ -3,7 +3,7 @@ import { BigNumber, ethers } from "ethers";
 import { LoaNFT } from "../../generated/contract-types/LoaNFT";
 
 interface LiveEarningsProps {
-  contract: LoaNFT;
+  contract?: LoaNFT;
   loanId: string;
   interval?: number;
 }
@@ -16,9 +16,13 @@ export const LiveEarnings: React.FC<LiveEarningsProps> = ({
   const [interests, setInterests] = useState<BigNumber>();
 
   useEffect(() => {
-    const _interval = setInterval(() => {
-      if (!contract) return;
+    if (!contract) return;
 
+    contract
+      .getLoanInterests(loanId)
+      .then((_interests) => setInterests(_interests));
+
+    const _interval = setInterval(() => {
       contract
         .getLoanInterests(loanId)
         .then((_interests) => setInterests(_interests))

@@ -100,14 +100,6 @@ export const LoanItem: React.FC<LoanItemProps> = (props) => {
       .catch((e) => console.log(e.data));
   }, [contracts.loaNFT, loanId, getAllLoans]);
 
-  useEffect(() => {
-    if (!contracts.loaNFT || !loanId) return;
-
-    contracts.loaNFT.getLoanInterests(loanId).then((interests) => {
-      console.log(interests.toString());
-    });
-  }, [contracts.loaNFT, loanId]);
-
   return (
     <Box position="relative">
       <Box fontWeight="bold" maxW="xl">
@@ -168,19 +160,17 @@ export const LoanItem: React.FC<LoanItemProps> = (props) => {
         <Box as={FaQuestionCircle} fontSize="md" color="gray.400" />
         <Badge colorScheme="green">{LoanStatus[loan.status]}</Badge>
       </HStack>
-      {contracts.loaNFT && loan.status === 2 && (
-        <HStack
-          fontSize="sm"
-          fontWeight="medium"
-          color={mode("gray.500", "white")}
-          mt="1"
-        >
-          <Box as={GrMoney} fontSize="md" color="gray.400" />
-          <span>
-            <LiveEarnings contract={contracts.loaNFT} loanId={loanId} />
-          </span>
-        </HStack>
-      )}
+      <HStack
+        fontSize="sm"
+        fontWeight="medium"
+        color={mode("gray.500", "white")}
+        mt="1"
+      >
+        <Box as={GrMoney} fontSize="md" color="gray.400" />
+        <span>
+          <LiveEarnings contract={contracts.loaNFT} loanId={loanId} />
+        </span>
+      </HStack>
       <HStack
         position={{ sm: "absolute" }}
         top={{ sm: "0" }}
