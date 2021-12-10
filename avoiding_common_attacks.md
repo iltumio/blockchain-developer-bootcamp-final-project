@@ -11,3 +11,7 @@ Appropriate require statements are put at the beginning of the public functions 
 ## Circuit breaker
 
 The contract implements a mechanism to stop the execution in case of emergency.
+
+## Protection against Re-entrancy
+
+Always update a status property **before** taking any action that involves sending eth or tokens to ensure malicious re-entrant calls to fail

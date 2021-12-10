@@ -4,7 +4,7 @@
 [https://loanft.netlify.app/](https://loanft.netlify.app/)
 
 ## How to run the project locally
-[https://youtu.be/6wrXtbsvHIg](https://youtu.be/6wrXtbsvHIg)
+[https://youtu.be/RGZ7pqDP35A](https://youtu.be/RGZ7pqDP35A)
 ### Prerequisites
 * Node >= 16
 * Yarn
@@ -17,6 +17,7 @@ yarn install
 ```
 
 2. Paste the mnemonic phrase you want to use in the following file (use the same seed phrase in Metamask so you will have money in the first 20 accounts for testing purpose)
+**Notes**: The hardhat node is configured to use interval mining in order to update block timestamp automatically. This may cause issues with metamask accounts that have already been used (because of the nonce). If you see transaction that stay pending for long time, please reset the account and repeat the test
 
 ```bash
 mnemonic.secret

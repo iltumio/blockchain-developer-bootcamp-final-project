@@ -3,8 +3,9 @@ import {
   Button,
   HStack,
   useColorModeValue as mode,
+  useToast,
 } from "@chakra-ui/react";
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { RiTimerFill } from "react-icons/ri";
 import {
   FaEthereum,
@@ -24,6 +25,8 @@ interface LoanRequestItemProps {
 export const LoanRequestItem: React.FC<LoanRequestItemProps> = (props) => {
   const { contracts, getAllLoanRequests, getAllLoans } = useWeb3();
   const { loanRequest } = props;
+  const [isLoading, setIsLoading] = useState(false);
+  const toast = useToast();
 
   const requestId = ethers.utils.solidityKeccak256(
     ["address", "address", "uint256"],
@@ -33,6 +36,7 @@ export const LoanRequestItem: React.FC<LoanRequestItemProps> = (props) => {
   const handleLoan = useCallback(() => {
     if (!contracts.loaNFT) return;
 
+    setIsLoading(true);
     contracts.loaNFT
       .provideLiquidityForALoan(requestId, { value: loanRequest.amount })
       .then((tx) => tx.wait())
@@ -40,14 +44,25 @@ export const LoanRequestItem: React.FC<LoanRequestItemProps> = (props) => {
         console.log(receipt);
         getAllLoanRequests();
         getAllLoans();
+        setIsLoading(false);
       })
-      .catch((e) => console.log(e.data));
+      .catch((e) => {
+        console.log(e.data);
+        setIsLoading(false);
+        toast({
+          title: "An error occurred with the transaction. Pleas retry",
+          status: "error",
+          isClosable: true,
+          position: "top",
+        });
+      });
   }, [
     contracts.loaNFT,
     requestId,
     loanRequest.amount,
     getAllLoanRequests,
     getAllLoans,
+    toast,
   ]);
 
   return (
@@ -107,7 +122,12 @@ export const LoanRequestItem: React.FC<LoanRequestItemProps> = (props) => {
         insetEnd={{ sm: "0" }}
         mt={{ base: "4", sm: "0" }}
       >
-        <Button aria-label="Loan" size="sm" onClick={handleLoan}>
+        <Button
+          aria-label="Loan"
+          size="sm"
+          onClick={handleLoan}
+          isLoading={isLoading}
+        >
           Provide liquidity
         </Button>
         {/* <IconButton

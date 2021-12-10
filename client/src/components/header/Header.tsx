@@ -25,14 +25,14 @@ export const Header: React.FC<HeaderProps> = () => {
     testNFT.balanceOf(selectedAddress).then((balance) => {
       setNFTBalance(balance.toNumber());
 
-      if (balance.toNumber() === 0) {
-        toast({
-          title: "You have no NFT to put as collateral",
-          status: "error",
-          isClosable: true,
-          position: "top",
-        });
-      }
+      // if (balance.toNumber() === 0) {
+      //   toast({
+      //     title: "You have no NFT to put as collateral",
+      //     status: "error",
+      //     isClosable: true,
+      //     position: "top",
+      //   });
+      // }
     });
   }, [connected, testNFT, selectedAddress, toast]);
 

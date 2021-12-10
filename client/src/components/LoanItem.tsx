@@ -4,8 +4,9 @@ import {
   HStack,
   useColorModeValue as mode,
   Badge,
+  useToast,
 } from "@chakra-ui/react";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { RiTimerFill } from "react-icons/ri";
 import {
   FaEthereum,
@@ -28,9 +29,11 @@ interface LoanItemProps {
 }
 
 export const LoanItem: React.FC<LoanItemProps> = (props) => {
-  const { contracts, selectedAddress, getAllLoans, getAllLoanRequests } =
-    useWeb3();
+  const { contracts, selectedAddress, getAllLoans } = useWeb3();
+  const toast = useToast();
   const { loan } = props;
+
+  const [isLoading, setIsLoading] = useState(false);
 
   const loanId = ethers.utils.solidityKeccak256(
     ["address", "address", "uint256"],
@@ -58,15 +61,26 @@ export const LoanItem: React.FC<LoanItemProps> = (props) => {
   const handleStartLoan = useCallback(() => {
     if (!contracts.loaNFT) return;
 
+    setIsLoading(true);
     contracts.loaNFT
       .widthrawLoan(loanId)
       .then((tx) => tx.wait())
       .then((receipt) => {
         console.log(receipt);
         getAllLoans();
+        setIsLoading(false);
       })
-      .catch((e) => console.log(e.data));
-  }, [contracts.loaNFT, loanId, getAllLoans]);
+      .catch((e) => {
+        console.log(e.data);
+        setIsLoading(false);
+        toast({
+          title: "An error occurred with the transaction. Pleas retry",
+          status: "error",
+          isClosable: true,
+          position: "top",
+        });
+      });
+  }, [contracts.loaNFT, loanId, getAllLoans, toast]);
 
   const handleRepayLoan = useCallback(async () => {
     if (!contracts.loaNFT) return;
@@ -77,28 +91,50 @@ export const LoanItem: React.FC<LoanItemProps> = (props) => {
 
     const finalAmount = loan.amount.add(interestsWithTollerance);
 
+    setIsLoading(true);
     contracts.loaNFT
       .repayLoan(loanId, { value: finalAmount })
       .then((tx) => tx.wait())
       .then((receipt) => {
         console.log(receipt);
         getAllLoans();
+        setIsLoading(false);
       })
-      .catch((e) => console.log(e.data));
-  }, [contracts.loaNFT, loanId, getAllLoans, loan.amount]);
+      .catch((e) => {
+        console.log(e.data);
+        setIsLoading(false);
+        toast({
+          title: "An error occurred with the transaction. Pleas retry",
+          status: "error",
+          isClosable: true,
+          position: "top",
+        });
+      });
+  }, [contracts.loaNFT, loanId, getAllLoans, loan.amount, toast]);
 
   const handleRedeemLoan = useCallback(async () => {
     if (!contracts.loaNFT) return;
 
+    setIsLoading(true);
     contracts.loaNFT
       .redeemLoanOrNFT(loanId)
       .then((tx) => tx.wait())
       .then((receipt) => {
         console.log(receipt);
         getAllLoans();
+        setIsLoading(false);
       })
-      .catch((e) => console.log(e.data));
-  }, [contracts.loaNFT, loanId, getAllLoans]);
+      .catch((e) => {
+        console.log(e.data);
+        setIsLoading(false);
+        toast({
+          title: "An error occurred with the transaction. Pleas retry",
+          status: "error",
+          isClosable: true,
+          position: "top",
+        });
+      });
+  }, [contracts.loaNFT, loanId, getAllLoans, toast]);
 
   return (
     <Box position="relative">
@@ -178,17 +214,32 @@ export const LoanItem: React.FC<LoanItemProps> = (props) => {
         mt={{ base: "4", sm: "0" }}
       >
         {isApplicant && loan.status === 1 && (
-          <Button aria-label="Loan" size="sm" onClick={handleStartLoan}>
+          <Button
+            aria-label="Loan"
+            size="sm"
+            onClick={handleStartLoan}
+            isLoading={isLoading}
+          >
             Start loan
           </Button>
         )}
         {isApplicant && loan.status === 2 && isOnTime && (
-          <Button aria-label="Repay" size="sm" onClick={handleRepayLoan}>
+          <Button
+            aria-label="Repay"
+            size="sm"
+            onClick={handleRepayLoan}
+            isLoading={isLoading}
+          >
             Repay loan
           </Button>
         )}
         {isSupplier && (!isOnTime || loan.status === 3) && (
-          <Button aria-label="Redeem" size="sm" onClick={handleRedeemLoan}>
+          <Button
+            aria-label="Redeem"
+            size="sm"
+            onClick={handleRedeemLoan}
+            isLoading={isLoading}
+          >
             Redeem
           </Button>
         )}

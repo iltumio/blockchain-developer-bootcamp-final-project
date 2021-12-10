@@ -10,8 +10,14 @@ import { Contract } from "@ethersproject/contracts";
 type HomePageProps = {};
 
 export const HomePage: React.FC<HomePageProps> = () => {
-  const { connected, loanRequests, loans, missingContracts, contracts } =
-    useWeb3();
+  const {
+    connected,
+    loanRequests,
+    loans,
+    missingContracts,
+    contracts,
+    ethersProvider,
+  } = useWeb3();
 
   const anyContractMissing =
     missingContracts &&

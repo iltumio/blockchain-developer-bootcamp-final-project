@@ -1,0 +1,3 @@
+LoaNFT address: 0x3c3Ab63e5fee3E7479cec24192722954AAD78231
+TestNFT address: 0x6FB19e85D0A31Ab6688809d488bf1144F24994c8
+network: Polygon mumbai

@@ -8,5 +8,8 @@
 
 - To keep track of elements in arrays a tracking mechanism with mappings has been applied. `loanRequestsTracker` and `loansTracker` tracks the index of each item inside the corresponding array avoiding the need to cycle for the search and for the removal of an item.
 
-## Contract derivation
-- The `LoaNFT` focuses on the business logic of the application and inherit from third-party contract for specific functionalities like NFT, access control and interests calculation.
+## Inheritance and Interfaces
+- The `LoaNFT` focuses on the business logic of the application and inherit from third-party contract for specific functionalities like NFT, access control and interests calculation. **Libraries in use**: ERC721, Pausable and Ownable by openzeppelin solidity-interest-helper by Nick Ward
+
+## Inter-Contract Execution
+- The `LoaNFT` contract calls the transfer function of a standard ERC721 contract in order to receive a previously approved NFT.
